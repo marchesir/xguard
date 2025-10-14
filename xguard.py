@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
+from bcc import BPF
 import sys
+import os
 
 DEFAULT_IFACE = "lo"
+PROGRAM = r"""
+int drop_all(void *ctx) {
+    bpf_trace_printk("Blocking ALL traffic");
+    return XDP_DROP;
+}
+"""
 
 def block_ipv4(ip4: str, iface: str = DEFAULT_IFACE):
     """Block traffic for a specific IPv4 address."""
@@ -9,7 +17,18 @@ def block_ipv4(ip4: str, iface: str = DEFAULT_IFACE):
 
 def block_all(iface: str = DEFAULT_IFACE):
     """Block all traffic (IPv4 + IPv6) on an interface."""
-    print(f"[xguard] (TODO) Blocking ALL traffic on {iface}")
+    b = BPF(text=PROGRAM)
+    fn = b.load_func("drop_all", BPF.XDP)
+    b.attach_xdp(iface, fn, 0)
+    print(f"[xguard] Attached XDP program to {iface}")  
+    try:
+        print("[xguard] Press Ctrl+C to stop and remove the XDP program")
+        b.trace_print()()
+    except KeyboardInterrupt:
+        print("\n[xguard] Detaching XDP program")
+        b.remove_xdp(iface, 0)  
+        print("[xguard] XDP program detached")  
+        os._exit(0)
 
 def help():
     print("""
@@ -20,6 +39,7 @@ Usage:
   xguard block-all [--iface <iface>]
 """)
 
+# Main function to parse command-line arguments and execute commands.
 def main():
     if len(sys.argv) < 2:
         help()
@@ -31,7 +51,7 @@ def main():
     iface = DEFAULT_IFACE
     ip4 = None
 
-    # Simple manual arg parsing
+    # Simple manual arg parsing.
     if "--iface" in args:
         idx = args.index("--iface")
         if idx + 1 < len(args):
@@ -51,5 +71,6 @@ def main():
         print(f"Unknown command: {cmd}\n")
         help()
 
+# Main entry point.
 if __name__ == "__main__":
     main()
