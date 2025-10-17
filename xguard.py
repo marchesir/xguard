@@ -4,31 +4,30 @@ import sys
 import os
 
 DEFAULT_IFACE = "lo"
-PROGRAM = r"""
-int drop_all(void *ctx) {
-    bpf_trace_printk("Blocking ALL traffic");
-    return XDP_DROP;
-}
-"""
+
 
 def block_ipv4(ip4: str, iface: str = DEFAULT_IFACE):
     """Block traffic for a specific IPv4 address."""
     print(f"[xguard] (TODO) Blocking IPv4 {ip4} on {iface}")
 
+
 def block_all(iface: str = DEFAULT_IFACE):
     """Block all traffic (IPv4 + IPv6) on an interface."""
-    b = BPF(text=PROGRAM)
+    device = "lo"
+    b = BPF(src_file="bpf/xguard.bpf.c")
     fn = b.load_func("drop_all", BPF.XDP)
     b.attach_xdp(iface, fn, 0)
-    print(f"[xguard] Attached XDP program to {iface}")  
+    print("[xguard] Attached XDP program.")
     try:
-        print("[xguard] Press Ctrl+C to stop and remove the XDP program")
-        b.trace_print()()
+        print(
+            f"[xguard] Blocking all IP traffic on interface {iface}: Press Ctrl+C to stop blocking."
+        )
+        b.trace_print()
     except KeyboardInterrupt:
-        print("\n[xguard] Detaching XDP program")
-        b.remove_xdp(iface, 0)  
-        print("[xguard] XDP program detached")  
-        os._exit(0)
+        print("[xguard] Detaching XDP program.")
+    b.remove_xdp(iface, 0)
+    print("[xguard] Detached XDP program.")
+
 
 def help():
     print("""
@@ -38,6 +37,7 @@ Usage:
   xguard block-ipv4 <ip4> [--iface <iface>]
   xguard block-all [--iface <iface>]
 """)
+
 
 # Main function to parse command-line arguments and execute commands.
 def main():
@@ -56,7 +56,7 @@ def main():
         idx = args.index("--iface")
         if idx + 1 < len(args):
             iface = args[idx + 1]
-            del args[idx:idx + 2]
+            del args[idx : idx + 2]
 
     if cmd == "block-ipv4":
         if not args:
@@ -70,6 +70,7 @@ def main():
     else:
         print(f"Unknown command: {cmd}\n")
         help()
+
 
 # Main entry point.
 if __name__ == "__main__":
