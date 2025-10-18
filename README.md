@@ -33,19 +33,21 @@ Blocks IPv4 traffic using eBPF/XDP.
 
 
 ## ⚡ How It Works
+```mermaid
 flowchart TD
     subgraph "🧱 Kernel Space"
-        NIC["Network Interface (NIC)"]
-        XDP["xguard.bpf.ceBPF Program (XDP)"]
+        NIC["📡 Network Interface (NIC)"]
+        XDP["⚡ xguard.bpf.c<br>eBPF Program (XDP)"]
         KernelStack["🧠 Kernel Networking Stack<br>(TCP/IP, Sockets)"]
     end
 
-    subgraph "User Space"
-        App["xguard.pyUserspace CLI & Controller"]
+    subgraph "👨‍💻 User Space"
+        App["xguard.py<br>Userspace CLI & Controller"]
     end
 
     NIC --> XDP
-    XDP -- "XDP_PASSAllow Packet" --> KernelStack
-    XDP -- "XDP_DROPDrop Packet" --> Drop["❌ Packet Dropped"]
+    XDP -- "XDP_PASS<br>Allow Packet" --> KernelStack
+    XDP -- "XDP_DROP<br>Drop Packet" --> Drop["❌ Packet Dropped"]
 
     KernelStack --> App
+    ```
