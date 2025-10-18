@@ -35,12 +35,12 @@ Blocks IPv4 traffic using eBPF/XDP.
 ## ⚡ How It Works
 flowchart TD
     subgraph "🧱 Kernel Space"
-        NIC["📡 Network Interface (NIC)"]
-        XDP["⚡ xguard.bpf.ceBPF Program (XDP)"]
+        NIC["Network Interface (NIC)"]
+        XDP["xguard.bpf.ceBPF Program (XDP)"]
         KernelStack["🧠 Kernel Networking Stack<br>(TCP/IP, Sockets)"]
     end
 
-    subgraph "👨‍💻 User Space"
+    subgraph "User Space"
         App["xguard.pyUserspace CLI & Controller"]
     end
 
