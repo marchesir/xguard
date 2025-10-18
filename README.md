@@ -34,27 +34,18 @@ Blocks IPv4 traffic using eBPF/XDP.
 
 ## ⚡ How It Works
 flowchart TD
-    subgraph NIC Layer
+    subgraph "🧱 Kernel Space"
         NIC["📡 Network Interface (NIC)"]
+        XDP["⚡ xguard.bpf.c<br>eBPF Program (XDP)"]
+        KernelStack["🧠 Kernel Networking Stack<br>(TCP/IP, Sockets)"]
     end
 
-    subgraph XDP Layer
-        XDP["⚡ XDP Program<br>(BPF at driver or skb hook)"]
-    end
-
-    subgraph Kernel Path
-        KernelStack["🧠 Kernel Network Stack<br>(TCP/IP, Netfilter, etc.)"]
-    end
-
-    subgraph User Space
-        App["👨‍💻 Userspace Application<br>(e.g., nginx, curl, tcpdump)"]
+    subgraph "👨‍💻 User Space"
+        App["xguard.py<br>Userspace CLI & Controller"]
     end
 
     NIC --> XDP
-
-    XDP -- "XDP_PASS" --> KernelStack
-    XDP -- "XDP_DROP" --> Drop[❌ Drop Packet]
-    XDP -- "XDP_REDIRECT" --> Redirect[🔁 Redirect (to IF, CPU, etc.)]
-    XDP -- "XDP_TX" --> TX[📤 Send back (bounce)]
+    XDP -- "XDP_PASS<br>Allow Packet" --> KernelStack
+    XDP -- "XDP_DROP<br>Drop Packet" --> Drop["❌ Packet Dropped"]
 
     KernelStack --> App
