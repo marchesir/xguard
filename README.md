@@ -36,16 +36,16 @@ Blocks IPv4 traffic using eBPF/XDP.
 flowchart TD
     subgraph "🧱 Kernel Space"
         NIC["📡 Network Interface (NIC)"]
-        XDP["⚡ xguard.bpf.c<br>eBPF Program (XDP)"]
+        XDP["⚡ xguard.bpf.ceBPF Program (XDP)"]
         KernelStack["🧠 Kernel Networking Stack<br>(TCP/IP, Sockets)"]
     end
 
     subgraph "👨‍💻 User Space"
-        App["xguard.py<br>Userspace CLI & Controller"]
+        App["xguard.pyUserspace CLI & Controller"]
     end
 
     NIC --> XDP
-    XDP -- "XDP_PASS<br>Allow Packet" --> KernelStack
-    XDP -- "XDP_DROP<br>Drop Packet" --> Drop["❌ Packet Dropped"]
+    XDP -- "XDP_PASSAllow Packet" --> KernelStack
+    XDP -- "XDP_DROPDrop Packet" --> Drop["❌ Packet Dropped"]
 
     KernelStack --> App
