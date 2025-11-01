@@ -1,42 +1,48 @@
 #!/usr/bin/env python3
 from bcc import BPF
 import sys
-import os
-
-DEFAULT_IFACE = "lo"
 
 
-def block_ipv4(ip4: str, iface: str = DEFAULT_IFACE):
-    """Block traffic for a specific IPv4 address."""
-    print(f"[xguard] (TODO) Blocking IPv4 {ip4} on {iface}")
-
-
-def block_all(iface: str = DEFAULT_IFACE):
-    """Block all traffic (IPv4 + IPv6) on an interface."""
-    device = "lo"
+# Traces network packets and filters them based on inputs.
+# Note: The filtering happens in user space with no packets dropped.
+def run_trace(iface, tcp, udp, icmp, kernel_trace):
+    print(f"[run_trace] Interface: {iface}")
+    print(f"[run_trace] TCP: {tcp}")
+    print(f"[run_trace] UDP: {udp}")
+    print(f"[run_trace] UDP: {icmp}")
+    print(f"[run_trace] kernel_trace: {kernel_trace}")
+    # Load eBPF program into kernel and attach the function as XDP on iface.
     b = BPF(src_file="bpf/xguard.bpf.c")
-    fn = b.load_func("drop_all", BPF.XDP)
+    fn = b.load_func("trace_with_filters ", BPF.XDP)
     b.attach_xdp(iface, fn, 0)
-    print("[xguard] Attached XDP program.")
+
+    # Communicate with Kernal eBPF/XDP program.
     try:
-        print(
-            f"[xguard] Blocking all IP traffic on interface {iface}: Press Ctrl+C to stop blocking."
-        )
+        print(f"[xguard] Attached XDP on interface {iface}: Press Ctrl+C to stop.")
         b.trace_print()
     except KeyboardInterrupt:
-        print("[xguard] Detaching XDP program.")
-    b.remove_xdp(iface, 0)
-    print("[xguard] Detached XDP program.")
+        print("[xguard] Detaching XDP on interface {iface}.")
+        b.remove_xdp(iface, 0)
+        print("[xguard] Detached XDP on interface {iface}.")
 
 
 def help():
     print("""
-xguard — Minimal eBPF/XDP realtime firewall.
+    xGuard — Lightweight eBPF/XDP tool for tracing and blocking live ingress traffic.
 
-Usage:
-  xguard block-ipv4 <ip4> [--iface <iface>]
-  xguard block-all [--iface <iface>]
-""")
+    Usage:
+      xguard [command] [options] --interface <IFACE>
+
+    Commands:
+      trace           View live packets (default: all IPv4 packets).
+
+    Required:
+      --interface <IFACE>     Network interface to attach (e.g. eth0).
+
+    Options:
+      --tcp | --udp | --icmp  Filter on transport protocol (only one).
+      --kernel-trace          Enable kernel-level tracing.
+    """)
 
 
 # Main function to parse command-line arguments and execute commands.
@@ -48,25 +54,48 @@ def main():
     cmd = sys.argv[1]
     args = sys.argv[2:]
 
-    iface = DEFAULT_IFACE
-    ip4 = None
+    # Defaults
+    iface = None
+    tcp, udp, icmp = False, False, False
+    protocol_set = False
+    kernel_trace = False
 
     # Simple manual arg parsing.
-    if "--iface" in args:
-        idx = args.index("--iface")
-        if idx + 1 < len(args):
-            iface = args[idx + 1]
-            del args[idx : idx + 2]
-
-    if cmd == "block-ipv4":
-        if not args:
-            print("Error: missing IPv4 address\n")
+    while args:
+        arg = args.pop(0)
+        if arg == "--interface":
+            if args:
+                iface = args.pop(0)
+            else:
+                print("Error: --interface requires a value.\n")
+                help()
+                return
+        elif arg in ("--tcp", "--udp", "--icmp"):
+            if protocol_set:
+                print("Error: Only one protocol can be specified.\n")
+                help()
+                return
+            tcp, udp, icmp = False, False, False  # Reset all
+            if arg == "--tcp":
+                tcp = True
+            elif arg == "--udp":
+                udp = True
+            elif arg == "--icmp":
+                icmp = True
+            protocol_set = True
+        elif arg == "--kernel-trace":
+            kernel_trace = True
+        else:
+            print(f"Unknown option: {arg}\n")
             help()
             return
-        ip4 = args[0]
-        block_ipv4(ip4, iface)
-    elif cmd == "block-all":
-        block_all(iface)
+
+    if cmd == "trace":
+        if not iface:
+            print("Error: --interface is required\n")
+            help()
+            return
+        run_trace(iface, tcp, udp, icmp, kernel_trace)
     else:
         print(f"Unknown command: {cmd}\n")
         help()
