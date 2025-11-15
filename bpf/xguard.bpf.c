@@ -1,6 +1,7 @@
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <linux/byteorder/generic.h> // ntohs()
 
 // Unique key to be used as key in hash map to share data with user space.
 // __be == Big-endian: Raw packet bytes.
@@ -31,7 +32,7 @@ int trace_with_filters(struct xdp_md *ctx) {
 
     // Point to start of ethhdr offset.
     struct ethhdr *eth = data;
-    // Point to start of iphdr.
+    // Point to start of iphdr offset.
     struct iphdr *iph = (void *)(eth + 1);
     // Bounds check: ensure ethhdr header fits in packet.
     if ((void *)(eth + 1) > data_end)
@@ -39,15 +40,13 @@ int trace_with_filters(struct xdp_md *ctx) {
     // Bounds check: ensure iphdr header fits in packet.
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
-
     // Its now safe to read data now from ethhdr/iphdr.
     struct key_t key = {
-        .eth_type = eth->h_proto
         .src_ip = iph->saddr,
+        .eth_type = ntohs(eth->h_proto),  // Convert from gig-endian to Little-endian.
         .protocol = iph->protocol
     };
-
-    // Lookup shared eBPF hash map and eitehr update counte ror create new entry.
+    // Lookup shared eBPF hash map and either update with number of hits on key or create new entry.
     __u64 *hits = hit_count.lookup(&key);
     if (hits) {
         __sync_fetch_and_add(hits, 1);  // To handle concurrency.
@@ -55,7 +54,7 @@ int trace_with_filters(struct xdp_md *ctx) {
         __u64 init_val = 1;
         hit_count.update(&key, &init_val);
     }
-
+    // trace.
     bpf_trace_printk("Raw XDP packets: [%x/%x]\n", key.eth_type,key.src_ip,key.protocol);
 
     return XDP_PASS;
