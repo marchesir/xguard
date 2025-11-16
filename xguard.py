@@ -5,19 +5,19 @@ import time
 import socket
 import struct
 
-
-# Convert eth_type to human-readable string (e.g., IPv4, IPv6, etc.)
-def eth_type_to_str(eth_type: int) -> str:
+# Convert eth_type to human-readable string: supported types are IPv4 and IPv6.
+# The eth_type was converted from Big-endian to Little-endian, this is needed for coorect usage in user space.
+def eth_type_to_str(eth_type: int) -> str | None:
     if eth_type == 0x0800:  # IPv4
         return "IPv4"
     elif eth_type == 0x86DD:  # IPv6
         return "IPv6"
     else:
-        return f"Unknown eth_type (0x{eth_type:x})"
+        return None
 
-
-# Convert protocol to human-readable string (TCP, UDP, ICMP.)
-def protocol_to_str(protocol: int) -> str:
+# Convert protocol to human-readable string: supported protocols are TCP, UDP, ICMP.
+# The prodocol is still the raw Big-endian 32-bit value, but these values are the same in both endians.
+def protocol_to_str(protocol: int) -> str | None:
     if protocol == 6:
         return "TCP"
     elif protocol == 17:
@@ -25,22 +25,26 @@ def protocol_to_str(protocol: int) -> str:
     elif protocol == 1:
         return "ICMP"
     else:
-        return f"Unknown protocol (0x{protocol:x})"
+        return None
 
-
-# Convert IP to a human-readable string based on eth_type.
-def ip_to_str(ip: int, eth_type: int) -> str:
-    if eth_type == 0x0800:  # IPv4
-        # Convert ip (32-bit integer) to IPv4 address string.
+# Convert IP to a human-readable string based on converted eth_type: supported types are IPv4 and IPv6.
+# The IP is still in the raw Big-endian 32-bit, but fro conversion we dont need to change endianness.
+def ip_to_str(ip: int, eth_type: str) -> str | None:
+    if eth_type == "IPv4":
+        # Convert ip (32-bit Big-endian) to IPv4 string.
         return socket.inet_ntoa(struct.pack("!I", ip))
-    elif eth_type == 0x86DD:  # IPv6
-        # Convert it to a 128-bit representation (IPv6).  Split into two 64-bit integers and pack as 128-bit.
+    elif eth_type == "IPv6":
+        # TODO: Currenty the eBPF program assumes IPv4-mapped 32-bit addresses only.
+        # IPv6 will contain 32-bit garbage. We need to extend the eBPF program to handle full 128-bit IPv6 addresses.
+        # Thus we will return None for now if the IP is less than 2^32.
+        if ip < (1 << 32):
+            return None
+        # Convert ip to a 128-bit representation (IPv6) and split into two 64-bit integers and pack as 128-bit.
         ip_bytes = struct.pack("!QQ", ip >> 64, ip & ((1 << 64) - 1))
-        # Convert bytes to IPv6 string
+        # Convert bytes to IPv6 string.
         return socket.inet_ntop(socket.AF_INET6, ip_bytes)
     else:
-        return f"Unknown IP (non-standard eth_type 0x{eth_type:x})"
-
+        return None
 
 # Traces network packets and filters them based on inputs.
 # Note: The filtering happens in user space with no packets dropped.
@@ -60,29 +64,15 @@ def run_trace(iface: str, tcp: str, udp: str, icmp: str, kernel_trace: str):
     # Communicate with Kernal eBPF/XDP program.
     try:
         print(f"[xguard] Attached XDP on interface {iface}: Press Ctrl+C to stop.")
-        # Keep track of the last key printed.
-        prev_key: tuple[str, str, str] | None = None
-        # Iterate over map entries.
         while True:
+            # Iterate over eBPF shared map.
             for key, value in hit_count.items():
-                # Convert values
                 eth_type_str = eth_type_to_str(key.eth_type)
                 protocol_str = protocol_to_str(key.protocol)
-                ip_str = ip_to_str(key.src_ip, key.eth_type)
-
-                # Create a tuple representing the key.
-                current_key = (eth_type_str, ip_str, protocol_str)
-                output = f"eth_type={eth_type_str}, src_ip={ip_str}, protocol={protocol_str}, hits={value.value}"
-
-                if current_key == prev_key:
-                    # Same key: overwrite the line.
-                    print(output, end="\r", flush=True)
-                else:
-                    # New key: print on a new line
-                    if prev_key is not None:
-                        print()  # move to the next line for previous key
-                    print(output, end="\r", flush=True)
-                    prev_key = current_key
+                ip_str = ip_to_str(key.src_ip, eth_type_str)
+                if None in (eth_type_str, protocol_str, ip_str):
+                    continue
+                print(f"eth_type={eth_type_str}, src_ip={ip_str}, protocol={protocol_str}, hits={value.value}")
 
             # Sleep to give CPU time to process data.
             time.sleep(1)
@@ -95,7 +85,7 @@ def run_trace(iface: str, tcp: str, udp: str, icmp: str, kernel_trace: str):
 
 def help():
     print("""
-    xGuard — Lightweight eBPF/XDP tool for tracing and blocking live ingress traffic.
+    xGuard — Lightweight eBPF/XDP tool for tracing live ingress traffic.
 
     Usage:
       xguard [command] [options] --interface <IFACE>
@@ -108,7 +98,7 @@ def help():
 
     Options:
       --tcp | --udp | --icmp  Filter on transport protocol (only one).
-      --kernel-trace          Enable kernel-level tracing.
+      --kernel-trace          Enable kernel-level tracing (not at same time as user-level tracing).
     """)
 
 

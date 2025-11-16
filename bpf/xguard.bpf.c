@@ -43,7 +43,7 @@ int trace_with_filters(struct xdp_md *ctx) {
     // Its now safe to read data now from ethhdr/iphdr.
     struct key_t key = {
         .src_ip = iph->saddr,
-        .eth_type = ntohs(eth->h_proto),  // Convert from gig-endian to Little-endian.
+        .eth_type = ntohs(eth->h_proto),  // Convert from Big-endian to Little-endian.
         .protocol = iph->protocol
     };
     // Lookup shared eBPF hash map and either update with number of hits on key or create new entry.
