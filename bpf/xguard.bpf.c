@@ -1,7 +1,7 @@
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
-#include <linux/byteorder/generic.h> // ntohs()
+#include <linux/byteorder/generic.h> // ntohs().
 
 // Unique key to be used as key in hash map to share data with user space.
 // __be == Big-endian: Raw packet bytes.
@@ -41,6 +41,8 @@ int trace_with_filters(struct xdp_md *ctx) {
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
     // Its now safe to read data now from ethhdr/iphdr.
+    // TODO: We are not explicity checking for eth_type so if IPv6 is received we reading from wrong struct which is 32-bit. 
+    // This will just send random bits to user space. 
     struct key_t key = {
         .src_ip = iph->saddr,
         .eth_type = ntohs(eth->h_proto),  // Convert from Big-endian to Little-endian.
@@ -54,7 +56,7 @@ int trace_with_filters(struct xdp_md *ctx) {
         __u64 init_val = 1;
         hit_count.update(&key, &init_val);
     }
-    // trace.
+    // Trace.
     bpf_trace_printk("Raw XDP packets: [%x/%x]\n", key.eth_type,key.src_ip,key.protocol);
 
     return XDP_PASS;

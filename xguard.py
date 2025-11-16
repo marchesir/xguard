@@ -48,12 +48,14 @@ def ip_to_str(ip: int, eth_type: str) -> str | None:
 
 # Traces network packets and filters them based on inputs.
 # Note: The filtering happens in user space with no packets dropped.
-def run_trace(iface: str, tcp: str, udp: str, icmp: str, kernel_trace: str):
+def run_trace(iface: str, userspace_trace: bool, tcp: bool, udp: bool, icmp: bool, kernel_trace: bool) -> None:
     print(f"[run_trace] Interface: {iface}")
+    print(f"[run_trace] Userspace Trace: {userspace_trace}")
     print(f"[run_trace] TCP: {tcp}")
     print(f"[run_trace] UDP: {udp}")
     print(f"[run_trace] UDP: {icmp}")
-    print(f"[run_trace] kernel_trace: {kernel_trace}")
+    print(f"[run_trace] kernel Trace: {kernel_trace}")
+
     # Load eBPF program into kernel and attach the function as XDP on iface.
     b = BPF(src_file="bpf/xguard.bpf.c")
     fn = b.load_func("trace_with_filters", BPF.XDP)
@@ -73,7 +75,6 @@ def run_trace(iface: str, tcp: str, udp: str, icmp: str, kernel_trace: str):
                 if None in (eth_type_str, protocol_str, ip_str):
                     continue
                 print(f"eth_type={eth_type_str}, src_ip={ip_str}, protocol={protocol_str}, hits={value.value}")
-
             # Sleep to give CPU time to process data.
             time.sleep(1)
         # b.trace_print()
@@ -82,42 +83,40 @@ def run_trace(iface: str, tcp: str, udp: str, icmp: str, kernel_trace: str):
         b.remove_xdp(iface, 0)
         print("[xguard] Detached XDP on interface {iface}.")
 
-
-def help():
+# Display usage information.
+def usage():
     print("""
     xGuard — Lightweight eBPF/XDP tool for tracing live ingress traffic.
 
     Usage:
-      xguard [command] [options] --interface <IFACE>
-
-    Commands:
-      trace           View live packets (default: all IPv4 packets).
+        xguard --interface <iface> --kernel-trace | --userspace-trace [--tcp | --udp | --icmp]
 
     Required:
-      --interface <IFACE>     Network interface to attach (e.g. eth0).
+        --interface <iface>                 Network interface to monitor (e.g., eth0).
+        --kernel-trace | --userspace-trace  One of these options must be selected: Tracing mode (kernel or userspace).
 
-    Options:
-      --tcp | --udp | --icmp  Filter on transport protocol (only one).
-      --kernel-trace          Enable kernel-level tracing (not at same time as user-level tracing).
+    Optional (only available with --userspace-trace):
+        --tcp                               Trace only TCP traffic.
+        --udp                               Trace only UDP traffic.
+        --icmp                              Trace only ICMP traffic.
     """)
-
 
 # Main function to parse command-line arguments and execute commands.
 def main():
     if len(sys.argv) < 2:
-        help()
+        usage()
         return
 
-    cmd = sys.argv[1]
-    args = sys.argv[2:]
+    args = sys.argv[1:]
 
     # Defaults
     iface = None
     tcp, udp, icmp = False, False, False
     protocol_set = False
     kernel_trace = False
+    userspace_trace = False
 
-    # Simple manual arg parsing.
+    # Parse command-line arguments.
     while args:
         arg = args.pop(0)
         if arg == "--interface":
@@ -125,14 +124,24 @@ def main():
                 iface = args.pop(0)
             else:
                 print("Error: --interface requires a value.\n")
-                help()
+                usage
                 return
+        elif arg == "--kernel-trace":
+            kernel_trace = True
+            userspace_trace = False  # If kernel-trace is set, ignore userspace-trace.
+        elif arg == "--userspace-trace":
+            userspace_trace = True
+            kernel_trace = False  # If userspace-trace is set, ignore kernel-trace.
         elif arg in ("--tcp", "--udp", "--icmp"):
+            if not userspace_trace:
+                print("Error: Protocol flags (--tcp, --udp, --icmp) are only allowed with --userspace-trace.\n")
+                usage
+                return
             if protocol_set:
                 print("Error: Only one protocol can be specified.\n")
-                help()
+                usage
                 return
-            tcp, udp, icmp = False, False, False  # Reset all
+            tcp, udp, icmp = False, False, False  # Reset all.
             if arg == "--tcp":
                 tcp = True
             elif arg == "--udp":
@@ -140,23 +149,22 @@ def main():
             elif arg == "--icmp":
                 icmp = True
             protocol_set = True
-        elif arg == "--kernel-trace":
-            kernel_trace = True
         else:
             print(f"Unknown option: {arg}\n")
-            help()
+            usage()
             return
 
-    if cmd == "trace":
-        if not iface:
-            print("Error: --interface is required\n")
-            help()
-            return
-        run_trace(iface, tcp, udp, icmp, kernel_trace)
-    else:
-        print(f"Unknown command: {cmd}\n")
-        help()
+    if not iface:
+        print("Error: --interface is required\n")
+        usage()
+        return
 
+    if not kernel_trace and not userspace_trace:
+        print("Error: One of --kernel-trace or --userspace-trace is required.\n")
+        usage()
+        return
+    # Run the trace with the parsed args.
+    run_trace(iface, userspace_trace, tcp, udp, icmp, kernel_trace)
 
 # Main entry point.
 if __name__ == "__main__":
