@@ -61,7 +61,7 @@ int trace_with_filters(struct xdp_md *ctx) {
     // CPU Core
     // Scheduler State
     // Timestamp (ns)
-    // Then the  struct key_t contents are appended in raw form.
+    // Then the struct key_t contents are appended.
     bpf_trace_printk("Raw network packets: eth_type=0x%x src_ip=%x protocol=%d\n",key.eth_type, key.src_ip, key.protocol);
 
     return XDP_PASS;
