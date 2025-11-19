@@ -67,39 +67,51 @@ def run_trace(iface: str, userspace_trace: bool, tcp: bool, udp: bool, icmp: boo
     try:
         print(f"[xguard] Attached XDP on interface {iface}: Press Ctrl+C to stop.")
         while True:
-            # Iterate over eBPF shared map.
-            for key, value in hit_count.items():
-                eth_type_str = eth_type_to_str(key.eth_type)
-                protocol_str = protocol_to_str(key.protocol)
-                ip_str = ip_to_str(key.src_ip, eth_type_str)
-                if None in (eth_type_str, protocol_str, ip_str):
-                    continue
-                print(f"eth_type={eth_type_str}, src_ip={ip_str}, protocol={protocol_str}, hits={value.value}")
-            # Sleep to give CPU time to process data.
-            time.sleep(1)
-        # b.trace_print()
+            if kernel_trace:
+                # Invoke kernel trace.
+                b.trace_print()
+            elif userspace_trace:
+                # Invoke userspace trace.    
+                # Iterate over eBPF shared map.
+                for key, value in hit_count.items():
+                    eth_type_str = eth_type_to_str(key.eth_type)
+                    protocol_str = protocol_to_str(key.protocol)
+                    ip_str = ip_to_str(key.src_ip, eth_type_str)
+                    # Ignore errors.
+                    if None in (eth_type_str, protocol_str, ip_str):
+                        continue
+                    # Apply protocol filters.
+                    elif tcp and protocol_str != "TCP":
+                        continue
+                    elif udp and protocol_str != "UDP":
+                        continue
+                    elif icmp and protocol_str != "ICMP":
+                        continue
+                    print(f"eth_type={eth_type_str}, src_ip={ip_str}, protocol={protocol_str}, hits={value.value}")
+                # Sleep to give CPU time to process data.
+                time.sleep(1)
     except KeyboardInterrupt:
         print("[xguard] Detaching XDP on interface {iface}.")
         b.remove_xdp(iface, 0)
         print("[xguard] Detached XDP on interface {iface}.")
 
 # Display usage information.
-def usage():
+def usage() -> None:
     print("""
-    xGuard — Lightweight eBPF/XDP tool for tracing live ingress traffic.
+xGuard — Lightweight eBPF/XDP tool for tracing live ingress traffic.
 
-    Usage:
-        xguard --interface <iface> --kernel-trace | --userspace-trace [--tcp | --udp | --icmp]
+Usage:
+    xguard --interface <iface> --kernel-trace | --userspace-trace [--tcp | --udp | --icmp]
 
-    Required:
-        --interface <iface>                 Network interface to monitor (e.g., eth0).
-        --kernel-trace | --userspace-trace  One of these options must be selected: Tracing mode (kernel or userspace).
+Required:
+    --interface <iface>                 Network interface to monitor (e.g., eth0).
+    --kernel-trace | --userspace-trace  One of these options must be selected: Tracing mode (kernel or userspace).
 
-    Optional (only available with --userspace-trace):
-        --tcp                               Trace only TCP traffic.
-        --udp                               Trace only UDP traffic.
-        --icmp                              Trace only ICMP traffic.
-    """)
+Optional (only available with --userspace-trace):
+    --tcp                               Trace only TCP traffic.
+    --udp                               Trace only UDP traffic.
+    --icmp                              Trace only ICMP traffic.
+""")
 
 # Main function to parse command-line arguments and execute commands.
 def main():

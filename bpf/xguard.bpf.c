@@ -14,13 +14,13 @@ struct key_t {
 BPF_HASH(hit_count, struct key_t, __u64, 1024);
 
 // All pckets will be XDP_PASS, we will find and construct a uniuque key
-// consisting of source IP and L3/4 protocols ans count hits on it ans share
+// consisting of source IP and L3/4 protocols and hits on it and share
 // via eBPF hash map with user space.
 int trace_with_filters(struct xdp_md *ctx) {
-    // XDP packet buffer offsets: Raw date from NIC.
+    // Network packet buffer offsets: Raw date from NIC.
     void *data_end = (void *)(long) ctx->data_end;
     void *data = (void *) (long) ctx->data;
-    // XDP Packet Layout:
+    // Network Packet Layout:
     //|<---------------- Ethernet Frame --------------------------->|
     //+---------------+----------------+----------------------------+
     //| L2 Ethernet   | L3 IPv4        | L4 TCP / UDP / ICMP        |
@@ -56,8 +56,13 @@ int trace_with_filters(struct xdp_md *ctx) {
         __u64 init_val = 1;
         hit_count.update(&key, &init_val);
     }
-    // Trace.
-    bpf_trace_printk("Raw XDP packets: [%x/%x]\n", key.eth_type,key.src_ip,key.protocol);
+    // Trace: low level kernal tracing the following info is preapended to each line:
+    // PID
+    // CPU Core
+    // Scheduler State
+    // Timestamp (ns)
+    // Then the  struct key_t contents are appended in raw form.
+    bpf_trace_printk("Raw network packets: eth_type=0x%x src_ip=%x protocol=%d\n",key.eth_type, key.src_ip, key.protocol);
 
     return XDP_PASS;
 }
