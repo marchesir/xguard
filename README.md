@@ -1,9 +1,6 @@
 # xguard
 
 Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
-# xguard
-
-Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
 
 ## Overview
 
