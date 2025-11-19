@@ -1,9 +1,9 @@
-# 🔒 xguard
+# xguard
 
-Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit 2025 Devpost](https://ebpf-summit-2025.devpost.com).
+Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
 
 
-## 📖 Overview
+## Overview
 
 **xguard** is a lightweight eBPF/XDP tool for tracing live ingress traffic at L3/3 layer.  It is designed primarily as a **learning project** to explore:
 
@@ -16,8 +16,9 @@ The current implementation uses **Python** for quick prototyping and simplicity.
 - A full **C-based eBPF + userspace** version.
 - A **Go-based userspace** implementation.
 - More advanced filtering (e.g., ports, IPv6, other protocols).
+- More control over output, specially for the kernle tracing.
 
-## 🧰 CLI Usage
+## CLI Usage
 <pre style="user-select: none; white-space: pre-wrap; word-wrap: break-word;">
 Usage:
     xguard --interface <iface> --kernel-trace | --userspace-trace [--tcp | --udp | --icmp]
@@ -71,16 +72,16 @@ One interesting leraning here was assumption that any IP would get passed upto u
 ## ⚡ How It Works
 ```mermaid
 flowchart TD
-    subgraph "🧱 Kernel Space"
-        NIC["📡 Network Interface (NIC)"]
-        XDP["⚡ xguard.bpf.c<br>eBPF Program (XDP)"]
-        KernelStack["🧠 Kernel Networking Stack<br>(TCP/IP, Sockets)"]
-        MapK["🗂️ Shared Map<br>(BPF_MAP_TYPE_*)"]
+    subgraph "Kernel Space"
+        NIC["Network Interface (NIC)"]
+        XDP["xguard.bpf.c<br>eBPF Program (XDP)"]
+        KernelStack["Kernel Networking Stack<br>(TCP/IP, Sockets)"]
+        MapK["Shared Map<br>(BPF_MAP_TYPE_*)"]
     end
 
-    subgraph "👨‍💻 User Space"
+    subgraph "User Space"
         App["xguard.py<br>Userspace CLI & Controller"]
-        MapU["🗂️ Shared Map Handle<br>(libbpf / bpf syscall)"]
+        MapU["Shared Map Handle<br>(libbpf / bpf syscall)"]
     end
 
     NIC --> XDP
@@ -96,14 +97,11 @@ flowchart TD
 
 ## Final Thoughts
 
-The **Kubernetes Community Days Edinburgh 2025** was an incredible learning experience. I had the opportunity to dive deep into **Kubernetes**, **Client Cluster Mesh**, and the powerful **tools** that help us build scalable cloud-native applications. One of the highlights of the event was receiving a special **LEGO** model, which serves as a reminder of the collaborative spirit and innovation we saw at the conference.
+The **eBPF Summit: Hackathon Edition 2025** was a great learning experience.  Below is the assemled eBPF lego i obtained at **Kubernetes Community Days Edinburgh 2025** fater completing Clilium Cluster Mesh training by Isovalent
 
-It was a great chance to network, share knowledge, and explore how Kubernetes and cloud-native technologies are shaping the future of software development.
+![eBPF Lego](ebpflego.jpg)
 
-Here's a photo of the **LEGO** model I received after the **Client Cluster Mesh** training session:
 
-![LEGO from Kubernetes Community Days Edinburgh 2025](ebpflego.jpg)
 
-This experience truly reinforced the power of open-source communities and the amazing tools that Kubernetes provides. I look forward to contributing to these projects and continuing to learn from the community.
 
 
