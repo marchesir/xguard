@@ -1,11 +1,13 @@
 # xguard
 
 Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
+# xguard
 
+Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
 
 ## Overview
 
-**xguard** is a lightweight eBPF/XDP tool for tracing live ingress traffic at L3/3 layer.  It is designed primarily as a **learning project** to explore:
+**xguard** is a lightweight eBPF/XDP tool for tracing live ingress traffic at the L3/L4 layer. It is designed primarily as a **learning project** to explore:
 
 - How **XDP programs** operate inside the kernel.
 - Basic **eBPF map** usage.
@@ -16,7 +18,7 @@ The current implementation uses **Python** for quick prototyping and simplicity.
 - A full **C-based eBPF + userspace** version.
 - A **Go-based userspace** implementation.
 - More advanced filtering (e.g., ports, IPv6, other protocols).
-- More control over output, specially for the kernle tracing.
+- More control over output, especially for kernel tracing.
 
 ## CLI Usage
 <pre style="user-select: none; white-space: pre-wrap; word-wrap: break-word;">
@@ -58,10 +60,8 @@ The kernel-trace option comes direct from eBPF/XDP program and is very verbose a
 2. ```sudo ./xguard.py --interface enp0s1 --userspace-trace```
 ![Output](userspace-trace.jpg)
 
-The userspace-trace will by default capture TCP/UDP/ICMP and IPv4 only, these can be filtered with approperate options.  The difference is mainly the output
-is more human readble and less verbose.  Helper functions were created to make this task simplier.  A shared map (kernel/userspace) was used to gather the traffic 
-and count the hits for each unique incoming network packet for Ethernet Type+Source IP+Protocol. 
-One interesting leraning here was assumption that any IP would get passed upto userspace. But as the offset start is the same for both IP4/IP6 it was getting stored in a 32-bit Big-endian and in the case of IPv6 is 128-bit and thus cuased random bits passed in.  The soliution is to check for IPv4/IPv6 and use correct struct.  This will be a TODO for now.
+The --userspace-trace option will, by default, capture TCP/UDP/ICMP and IPv4 only. These can be filtered with the appropriate options. The main difference is that the output is more human-readable and less verbose. Helper functions were created to make this task simpler. A shared map (kernel/userspace) was used to gather the traffic and count the hits for each unique incoming network packet (Ethernet Type + Source IP + Protocol).
+One interesting learning here was the assumption that any IP would get passed up to userspace. But as the offset start is the same for both IPv4/IPv6, it was getting stored in a 32-bit Big-endian format, and in the case of IPv6 (which is 128-bit), random bits were passed. The solution is to check for IPv4/IPv6 and use the correct struct. This will be a TODO for now.
 
 3. Running ```sudo ip a | grep enp0s1``` will query the NIC and if the eBPF/XDP programm has been atached it will be show as such:
 <pre style="user-select: none; white-space: pre-wrap; word-wrap: break-word;">
@@ -97,10 +97,8 @@ flowchart TD
 
 ## Final Thoughts
 
-The **eBPF Summit: Hackathon Edition 2025** was a great learning experience.  Below is the assemled eBPF lego i obtained at **Kubernetes Community Days Edinburgh 2025** fater completing Clilium Cluster Mesh training by Isovalent
-
+The **eBPF Summit: Hackathon Edition 2025** was a great learning experience. Below is the assembled eBPF LEGO I obtained at Kubernetes Community Days Edinburgh 2025 after completing Cilium Cluster Mesh training by Isovalent.
 ![eBPF Lego](ebpflego.jpg)
-
 
 
 
