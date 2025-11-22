@@ -1,21 +1,14 @@
-# xguard
-
-Lightweight eBPF/XDP tool for tracing live ingress traffic — built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).
-
 ## Overview
 
-**xguard** is a lightweight eBPF/XDP tool for tracing live ingress traffic at the L3/L4 layer. It is designed primarily as a **learning project** to explore:
+**xguard** is a lightweight eBPF/XDP tool for tracing live ingress traffic at the L3/L4 layer, built for the [eBPF Summit: Hackathon Edition 2025](https://ebpf-summit-2025.devpost.com).  It is designed primarily as a **learning project** to explore:
 
 - How **XDP programs** operate inside the kernel.
 - Basic **eBPF map** usage.
 - Low-level **L3/L4 packet filtering**.
 
-The current implementation uses **Python** for quick prototyping and simplicity. Future iterations may include:
-
-- A full **C-based eBPF + userspace** version.
-- A **Go-based userspace** implementation.
-- More advanced filtering (e.g., ports, IPv6, other protocols).
-- More control over output, especially for kernel tracing.
+The current implementation uses Python for rapid prototyping and ease of development. However, it has several limitations:
+- Incomplete support for IPv6 and port handling.
+- Output handling is currently minimal and oversimplified, requiring further improvement—especially for kernel-level tracing, which tends to be very noisy.
 
 ## CLI Usage
 <pre style="user-select: none; white-space: pre-wrap; word-wrap: break-word;">
@@ -32,33 +25,33 @@ Optional (only available with --userspace-trace):
     --icmp                              Trace only ICMP traffic.
 </pre>
 
-## 🧰 Tests
+## Tests
 
 Assumptions:
 * Ubuntu 24.04 VM was used.
-* sudo is needed to run xguard CLI.
-* Interface set to enp0s1.
-* ```ping google.com``` to generate some traffic was left running in seperate terminal.
+* sudo used to run xguard CLI.
+* Interface is set to enp0s1.
+* ```ping google.com``` was ran to generate some traffic and left running in seperate terminal.
 
 1. ```sudo ./xguard.py --interface enp0s1 --kernel-trace```
 ![Output](kernel-trace.jpg)
 
-The kernel-trace option comes direct from eBPF/XDP program and is very verbose and low level and prints the following:
+The --kernel-trace option comes directly from the eBPF/XDP program and is very verbose and low level and prints the following:
 * Event Data (autognerated):
-  * PID
-  * CPU Core
-  * Scheduler State
-  * Timestamp (NS)
+  * PID.
+  * CPU Core.
+  * Scheduler State.
+  * Timestamp (NS).
 * Shared kernel/userspace map:
-  * Ethernet Type (converted to Little-endian)
-  * Source IP (Big-endian)
-  * Protocol (Big-endian)
+  * Ethernet Type (converted to Little-endian).
+  * Source IP (Big-endian).
+  * Protocol (Big-endian).
 
 2. ```sudo ./xguard.py --interface enp0s1 --userspace-trace```
 ![Output](userspace-trace.jpg)
 
 The --userspace-trace option will, by default, capture TCP/UDP/ICMP and IPv4 only. These can be filtered with the appropriate options. The main difference is that the output is more human-readable and less verbose. Helper functions were created to make this task simpler. A shared map (kernel/userspace) was used to gather the traffic and count the hits for each unique incoming network packet (Ethernet Type + Source IP + Protocol).
-One interesting learning here was the assumption that any IP would get passed up to userspace. But as the offset start is the same for both IPv4/IPv6, it was getting stored in a 32-bit Big-endian format, and in the case of IPv6 (which is 128-bit), random bits were passed. The solution is to check for IPv4/IPv6 and use the correct struct. This will be a TODO for now.
+One interesting learning here was the assumption that any IP would get passed up to userspace as is.  But as the offset start is the same for both IPv4/IPv6, it gets stored in a 32-bit Big-endian format which is what gets used in the shared kernel/userspace map.  In the case of IPv6 (which is 128-bit), random bits were passed. The solution is to check for IPv4/IPv6 and use the correct struct. To fix this and erro check was added in the userspace program and th eoutput was skipped.
 
 3. Running ```sudo ip a | grep enp0s1``` will query the NIC and if the eBPF/XDP programm has been atached it will be show as such:
 <pre style="user-select: none; white-space: pre-wrap; word-wrap: break-word;">
