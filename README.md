@@ -88,7 +88,7 @@ flowchart TD
     MapK <-- "same underlying map" --> MapU
 ```
 
-##Improvements
+## Improvements
 
 * Move more of the network-packet filtering into the eBPF program for better performance.
 * Add the ability to trace based on time ranges, especially since kernel traces can be very noisy.
