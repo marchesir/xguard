@@ -88,11 +88,15 @@ flowchart TD
     MapK <-- "same underlying map" --> MapU
 ```
 
+##Improvements
+
+* Move more of the network-packet filtering into the eBPF program for better performance.
+* Add the ability to trace based on time ranges, especially since kernel traces can be very noisy.
+* Add the ability to export to common logging formats, e.g. JSON, CSV, Prometheus, etc.
+
+
 ## Final Thoughts
 
 The **eBPF Summit: Hackathon Edition 2025** was a great learning experience. Below is the assembled eBPF LEGO obtained at Kubernetes Community Days Edinburgh 2025 after completing Cilium Cluster Mesh training by Isovalent.
 ![eBPF Lego](ebpflego.jpg)
-
-
-
 
